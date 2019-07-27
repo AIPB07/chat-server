@@ -1,5 +1,6 @@
 import socket
 import selectors
+import types
 
 HOST = '127.0.0.1'
 PORT = 54321
@@ -14,18 +15,18 @@ def accept_connection(sock):
 	print(f'Connected to by {addr}')
 	conn.setblocking(False)
 	data = types.SimpleNamespace(addr=addr, inb=b'', outb=b'')
-	events = selectors.EVENT_READ|selectors.EVENT_WRITE
-	sel.register(conn, events, data)
+	events = selectors.EVENT_READ | selectors.EVENT_WRITE
+	sel.register(conn, events, data=data)
 
 
 
-def service_connection(key, events):
+def service_connection(key, mask):
 	"""Function to service an existing socket connection"""
 
 	sock = key.fileobj
 	data = key.data
 	# Check for read events
-	if events & selectors.EVENT_READ:
+	if mask & selectors.EVENT_READ:
 		data_recv = sock.recv(1024)
 		if data_recv != None:
 			data.outb += data_recv
@@ -34,10 +35,10 @@ def service_connection(key, events):
 			sel.unregister(sock)
 			sock.close()
 	# Check for write events
-	if events & selectors.EVENT_WRITE:
+	if mask & selectors.EVENT_WRITE:
 		if data.outb:
-			data_sent = sock.sendall(data.outb)
-			data.outb = data.outb[sent:]
+			data_sent = sock.send(data.outb)
+			data.outb = data.outb[data_sent:]
 
 
 if __name__ == '__main__':
