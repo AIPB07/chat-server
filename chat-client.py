@@ -117,7 +117,6 @@ while True:
 				print('Connection closed by server')
 				sock.close()
 				sys.exit()
-				break
 			user_len = int(user_header.decode("utf-8").strip())
 			user = sock.recv(user_len).decode("utf-8")
 			msg_header = recv_msg(sock, HEADER_LENGTH)
