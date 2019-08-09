@@ -2,9 +2,41 @@ import socket
 import selectors
 
 HEADER_LENGTH = 10
-HOST = '127.0.0.1'
+HOST = '0.0.0.0'
 PORT = 54321
 clients = []  # List for storing client information
+
+
+def send_msg(sock, msg):
+	"""Function for sending message to client"""
+
+	totalsent = 0
+	while totalsent < len(msg):
+		try:
+			sent = sock.send(msg[totalsent:])
+		except:
+			print('Message failed to send')
+			return
+		if sent == 0:
+			print('Socket connection broken')
+			return
+		totalsent += sent
+
+
+def recv_msg(sock, msg_len):
+	"""Function for receiving fixed-length message from client"""
+
+	msg = b''
+	while len(msg) < msg_len:
+		try:
+			chunk = sock.recv(min(msg_len, msg_len - len(msg)))
+		except:
+			print('Failed to receive message')
+			return
+		if chunk == b'':
+			return
+		msg += chunk
+	return msg
 
 
 def accept_connection(sock):
@@ -16,47 +48,44 @@ def accept_connection(sock):
 	conn.setblocking(False)
 
 	# Receive first message. This will contain username
-	user_header = conn.recv(HEADER_LENGTH)
+	user_header = recv_msg(conn, HEADER_LENGTH)
 	username_length = int(user_header.decode("utf-8").strip())
-	username = conn.recv(username_length).decode("utf-8")
+	username = recv_msg(conn, username_length).decode("utf-8")
 
 	# Register socket with sel 
-	events = selectors.EVENT_READ | selectors.EVENT_WRITE
+	events = selectors.EVENT_READ
 	data = {"addr": addr, "username": username, "socket": conn}
 	sel.register(conn, events, data=data)
 	clients.append(data)
 
 
-def service_connection(key, mask):
+def service_connection(key):
 	"""Function to service an existing connection"""
 
 	global clients
 	sock = key.fileobj
 	data = key.data
-	# Check for read events
-	if mask & selectors.EVENT_READ:
-		# Receive message from socket
-		msg_header = sock.recv(HEADER_LENGTH)
-		if not msg_header:
-			print(f'Closing connection to {data["addr"]}')
-			sel.unregister(sock)
-			sock.close()
-			clients = [client for client in clients if client["addr"]!=data["addr"]]
-			return None
-		msg_length = int(msg_header.decode("utf-8").strip())
-		msg = sock.recv(msg_length).decode("utf-8")
-		print(f'Message received: {msg}')
+	# Receive message from socket
+	msg_header = recv_msg(sock, HEADER_LENGTH)
+	if not msg_header:
+		print(f'Closing connection to {data["addr"]}')
+		sel.unregister(sock)
+		sock.close()
+		clients = [client for client in clients if client["addr"]!=data["addr"]]
+		return
+	msg_length = int(msg_header.decode("utf-8").strip())
+	msg = recv_msg(sock, msg_length).decode("utf-8")
+	print(f'Message received: {msg}')
 
-		# Create username header
-		username_enc = data["username"].encode("utf-8")
-		user_header = f'{len(username_enc):<{HEADER_LENGTH}}'.encode("utf-8")
+	# Create username header
+	username_enc = data["username"].encode("utf-8")
+	user_header = f'{len(username_enc):<{HEADER_LENGTH}}'.encode("utf-8")
 
-		# Distribute message to all other connected clients
-		for client in clients:
-			if client["addr"] == data["addr"]:
-				continue
+	# Distribute message to all other connected clients
+	for client in clients:
+		if client["addr"] != data["addr"]:
 			print(f'Sending message to {client["username"]}...')
-			client["socket"].send(user_header + username_enc + msg_header + msg.encode())
+			send_msg(client["socket"], user_header + username_enc + msg_header + msg.encode())
 			print('Message sent!')
 
 
@@ -78,7 +107,7 @@ while True:
 		if key.data is None:
 			# Listening socket is ready. Accept new connection
 			accept_connection(key.fileobj)
-		else:
+		elif mask & selectors.EVENT_READ:
 			# Existing socket is ready. Service it
-			service_connection(key, mask)
+			service_connection(key)
 
