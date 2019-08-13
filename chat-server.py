@@ -14,7 +14,7 @@ def send_msg(sock, msg):
 	while totalsent < len(msg):
 		try:
 			sent = sock.send(msg[totalsent:])
-		except:
+		except OSError:
 			print('Message failed to send')
 			return
 		if sent == 0:
@@ -30,8 +30,11 @@ def recv_msg(sock, msg_len):
 	while len(msg) < msg_len:
 		try:
 			chunk = sock.recv(min(msg_len, msg_len - len(msg)))
-		except:
-			print('Failed to receive message')
+		except BlockingIOError:
+			print('Failed to receive message (BlockingIOError)')
+			return
+		except OSError:
+			print('Failed to receive message (OSError)')
 			return
 		if chunk == b'':
 			return
@@ -49,8 +52,25 @@ def accept_connection(sock):
 
 	# Receive first message. This will contain username
 	user_header = recv_msg(conn, HEADER_LENGTH)
-	username_length = int(user_header.decode("utf-8").strip())
-	username = recv_msg(conn, username_length).decode("utf-8")
+	if not user_header:
+		print(f'Error receiving user header. Closing connection to {addr}')
+		conn.close()
+		return
+	try:
+		username_length = int(user_header.decode("utf-8").strip())
+		username = recv_msg(conn, username_length).decode("utf-8")
+	except AttributeError:
+		print(f'Error receiving username. Closing connection to {addr}')
+		conn.close()
+		return
+	except UnicodeDecodeError:
+		print(f'Error decoding username. Closing connection to {addr}')
+		conn.close()
+		return
+	except ValueError:
+		print(f'Invalid username length received. Closing connection to {addr}')
+		conn.close()
+		return
 
 	# Register socket with sel 
 	events = selectors.EVENT_READ
@@ -73,9 +93,26 @@ def service_connection(key):
 		sock.close()
 		clients = [client for client in clients if client["addr"]!=data["addr"]]
 		return
-	msg_length = int(msg_header.decode("utf-8").strip())
-	msg = recv_msg(sock, msg_length).decode("utf-8")
-	print(f'Message received: {msg}')
+	try:
+		msg_length = int(msg_header.decode("utf-8").strip())
+		msg = recv_msg(sock, msg_length).decode("utf-8")
+		print(f'Message received: {msg}')
+	except AttributeError:
+		print(f'Error receiving message. Closing connection to {data["addr"]}')
+		sel.unregister(sock)
+		sock.close()
+		clients = [client for client in clients if client["addr"]!=data["addr"]]
+		return
+	except UnicodeDecodeError:
+		print(f'Error decoding message. Closing connection to {data["addr"]}')
+		sel.unregister(sock)
+		conn.close()
+		return
+	except ValueError:
+		print(f'Invalid message length received. Closing connection to {data["addr"]}')
+		sel.unregister(sock)
+		conn.close()
+		return
 
 	# Create username header
 	username_enc = data["username"].encode("utf-8")

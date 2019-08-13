@@ -18,7 +18,7 @@ def send_msg(sock, msg):
 	while totalsent < len(msg):
 		try:
 			sent = sock.send(msg[totalsent:])
-		except:
+		except OSError:
 			print('Message failed to send')
 			return
 		if sent == 0:
@@ -84,9 +84,9 @@ while True:
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
 	sock.connect((HOST, PORT))
-except:
+except OSError:
 	print('Failed to connect to server')
-	sys.exit()
+	sys.exit(1)
 sock.setblocking(False)
 
 # Send username to server with a header
@@ -111,12 +111,13 @@ while True:
 		send_msg(sock, msg_header + msg_enc)
 	try:
 		# Receive messages
-		while True:
+		exit = False
+		while not exit:
 			user_header = recv_msg(sock, HEADER_LENGTH)
 			if not user_header:
 				print('Connection closed by server')
 				sock.close()
-				sys.exit()
+				exit = True
 			user_len = int(user_header.decode("utf-8").strip())
 			user = sock.recv(user_len).decode("utf-8")
 			msg_header = recv_msg(sock, HEADER_LENGTH)
@@ -128,6 +129,7 @@ while True:
 		# operation cannot be performed immediately
 		if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
 			print(f'Reading error: {str(e)}')
+			break
 		continue
 	except Exception as e:
 		# Any other exception
