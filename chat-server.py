@@ -35,7 +35,6 @@ def recv_msg(sock, msg_len):
 			return
 		except OSError:
 			print('Failed to receive message (OSError)')
-			return
 		if chunk == b'':
 			return
 		msg += chunk

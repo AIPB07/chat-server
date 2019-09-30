@@ -54,16 +54,19 @@ def signal_handler(sig, frame):
 # Ensure correct usage
 if len(sys.argv) != 2:
 	print('Usage: python chat-client.py IPv4')
-	sys.exit()
+	sys.exit(1)
 
 # Validate IP address
 try:
 	server_ip = ipaddress.IPv4Address(sys.argv[1])
 except ipaddress.AddressValueError:
 	print('Please provide a valid IPv4 address')
-	sys.exit()
+	sys.exit(1)
 
 HOST = sys.argv[1]
+
+# Register signal handler for Ctrl+C interrupt
+signal.signal(signal.SIGINT, signal_handler)
 
 print('\nWelcome to the chat server!\n')
 time.sleep(1)
@@ -94,7 +97,6 @@ my_username_header = f'{len(my_username_enc):<{HEADER_LENGTH}}'.encode("utf-8")
 send_msg(sock, my_username_header + my_username_enc)
 
 while True:
-	signal.signal(signal.SIGINT, signal_handler)
 	if msvcrt.kbhit():
 		while True:
 			msg = input(f'{my_username}> ')
@@ -131,9 +133,5 @@ while True:
 			print(f'Reading error: {str(e)}')
 			break
 		continue
-	except Exception as e:
-		# Any other exception
-		print(f'Reading error: {str(e)}')
-		break
 
 
