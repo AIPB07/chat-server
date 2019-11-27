@@ -7,7 +7,7 @@ There are two sets of clients and servers: echo and chat.
 ![Chat server](demo/chat-server.gif)
 
 ## Installation and Usage
-To run the fully functioning chat application, in one CLI run from the root directory:
+To run the fully functioning chat application, in one CLI from the root directory type:
 
 ```bash
 python chat-server.py
