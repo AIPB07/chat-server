@@ -3,6 +3,9 @@ A chat server and client written in python using the socket library.
 
 There are two sets of clients and servers: echo and chat.
 
+## Demo
+![Chat server](demo/chat-server.gif)
+
 ## Installation and Usage
 To run the fully functioning chat application, in one CLI run from the root directory:
 
