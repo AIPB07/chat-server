@@ -7,6 +7,17 @@ There are two sets of clients and servers: echo and chat.
 ![Chat server](demo/chat-server.gif)
 
 ## Installation and Usage
+
+### Pre-requisites
+
+To install the required Python packages, run the following:
+
+```
+pip install -r requirements.txt
+```
+
+### Usage
+
 To run the fully functioning chat application, in one CLI from the root directory type:
 
 ```bash
